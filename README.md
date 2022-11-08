@@ -16,7 +16,7 @@ In experiments.py
       y - pd.Series with target values
       experiment_name - name of experiment (results are saved in directiry with this name) 
 
-      ** run(X,y, experiment_name="transcriptomic_mdd_without_scaling", repeats =10, scaling=False) **
+  **run(X,y, experiment_name="transcriptomic_mdd_without_scaling", repeats =10, scaling=False)**
 
 
 
