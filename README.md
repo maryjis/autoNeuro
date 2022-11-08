@@ -8,3 +8,8 @@ Pipeline consist of several steps
 2. **ExperimentsInfo** - calculate the most important features for the best methods,  build roc curves and other metrics, save important features as DataFrame  to  EXPERIMENTS_PATH (experiments.py module). It is located in metrics.py module.
 3. **FeaturesStats**  - calculate the distributions and post-hoc t-test for the the most important features calculated in the previos step.
    
+**How to run**
+X - pd.DataFrame with numeric data
+y - pd.Series with target values
+experiment_name - name of experiment (results are saved in directiry with this name) 
+<sub> important_features =run(X,y, experiment_name="transcriptomic_mdd_without_scaling", repeats =10, scaling=False) </sub>
