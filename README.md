@@ -16,7 +16,7 @@ In experiments.py
       y - pd.Series with target values
       experiment_name - name of experiment (results are saved in directiry with this name) 
 
-      best_result,best_f1 =run(X,y, experiment_name=file.stem, repeats =10, topN=1,scaling=False)run(X,y, experiment_name="transcriptomic_mdd_without_scaling", repeats =10, scaling=False)**
+      best_result,best_f1 =run(X,y, experiment_name=file.stem, repeats =10, topN=1,scaling=False)
 
 
 
