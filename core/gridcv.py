@@ -47,7 +47,7 @@ class GridSearchBase():
             self.fearure_selection_methods += [SelectFromModel(
                                                         estimator =LogisticRegression(random_state=self.random_state),
                                                         max_features=n) for n in self.n_features]
-            self.fearure_selection_methods += [PCA(self.pca_level, random_state=self.random_state)]
+            #self.fearure_selection_methods += [PCA(self.pca_level, random_state=self.random_state)]
 
     def train(self):
         for model_name, model in self.grid_methods.items():
