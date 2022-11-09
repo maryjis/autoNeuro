@@ -1,13 +1,13 @@
 import pandas as pd
-from scipy.stats import ttest_ind,shapiro,levene,mannwhitneyu
+from scipy.stats import ttest_ind, shapiro, levene, mannwhitneyu
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-class FeaturesStats():
 
-    def __init__(self, dataset, important_features, ):
-        self.dataset =dataset
-        self.important_features =important_features
+class FeaturesStats():
+    def __init__(self, dataset, important_features):
+        self.dataset = dataset
+        self.important_features = important_features
         self.important_features['p-value'] = ""
         self.important_features['test'] = ""
         self.important_features['normality'] = False
@@ -17,12 +17,13 @@ class FeaturesStats():
         for important_feature in self.important_features['feature_name'].tolist():
             print(important_feature)
             self.check_features(important_feature)
+
         print("_______________________________________________")
-        self.important_features['p-value<0.05'] =self.important_features['p-value']<0.05
+        self.important_features['p-value<0.05'] = self.important_features['p-value'] < 0.05
+
         return self.important_features
 
     def check_features(self, feature_column):
-
         res_0 = shapiro(self.dataset.loc[self.dataset["target"] == "Patient"][feature_column])
         res_1 = shapiro(self.dataset.loc[self.dataset["target"] == "Control"][feature_column])
 
