@@ -10,7 +10,7 @@ Pipeline consist of several steps
    
 **How to run**
 
-You can run code using experiments.py or see examples with jupyter notebooks in experiments package
+You can run code using experiments.py or see examples with jupyter notebooks in experiments package.
 
       X - pd.DataFrame with numeric data
       y - pd.Series with target values
