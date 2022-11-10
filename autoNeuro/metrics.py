@@ -44,8 +44,12 @@ class ExperimentsInfo:
             self.pipe = self.pipe.fit(X_train, y_train)
             
             # get the indices of the selected features and select them in X
-            cols = self.pipe['feature_selection'].get_support(indices=True)
-            features_df_new = self.X.iloc[:, cols]
+            if hasattr(self.pipe['feature_selection'], 'get_support'):
+                col_idx = self.pipe['feature_selection'].get_support(indices=True)
+                feature_names_new = list(self.X.columns[col_idx])
+            # PCA and the like (they don't select features, but create new ones)
+            else:
+                feature_names_new = [f'f_{i}' for i in range(self.pipe['feature_selection'].n_components_)]
 
             if show_roc_auc:
                 viz = plot_roc_curve(self.pipe, X_test, y_test,
@@ -70,10 +74,10 @@ class ExperimentsInfo:
             # as a list of tuples (name, importance)
             importances = []
             if hasattr(self.pipe['model'], 'feature_importances_'):
-                importances = list(zip(list(features_df_new.columns), self.pipe['model'].feature_importances_))
+                importances = list(zip(feature_names_new , self.pipe['model'].feature_importances_))
                 importances = sorted(importances, key=lambda x: abs(x[1]), reverse=True)[:topN]
             elif hasattr(self.pipe['model'], 'coef_'):
-                importances = zip(list(features_df_new.columns), self.pipe['model'].coef_[0, :])
+                importances = zip(feature_names_new, self.pipe['model'].coef_[0, :])
                 importances = sorted(importances, key=lambda x: abs(x[1]), reverse=True)[:topN]
 
             cm = confusion_matrix(y_test, predict_values, labels=self.pipe["model"].classes_)

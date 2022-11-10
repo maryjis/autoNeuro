@@ -76,17 +76,20 @@ def run(
             best_f1 = qualuty
             best_result = results
         
-        # compute some stats on important features
-        fs = FeaturesStats(dataset, important_features_df)
-        important_features_df = fs.get_stats(plot_density=plot_density)
-
-        important_features[str(model)] = important_features_df
-        
+        # check if important features is a subset of original features
+        if len(set(important_features_df.columns) & set(X.columns)) == len(set(important_features_df)):
+            # compute some stats on important features
+            fs = FeaturesStats(dataset, important_features_df)
+            important_features_df = fs.get_stats(plot_density=plot_density)
+            important_features[str(model)] = important_features_df
+            # save feature importances
+            important_features_df.to_excel(result_path / f"model_best_{i}_important_features.xls",  index=False)
+        else:
+            print('Dimension reduction was applied, no original features were selected, hence no stats on those features')
+            
         # save metrics report
         with open(result_path / f"model_best_{i}_metrics.txt", 'w') as fp:
             fp.write(results)
         
-        # save feature importances
-        important_features_df.to_excel(result_path / f"model_best_{i}_important_features.xls",  index=False)
 
     return best_result, best_f1

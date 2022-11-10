@@ -1,3 +1,6 @@
+import time
+import datetime
+
 from xgboost import XGBClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
@@ -76,7 +79,9 @@ class GridSearchBase:
         for model_name, model in self.grid_methods.items():
             best_model, best_quality, best_params,best_feature_selection = None, 0, None, None
             for feature_selection_method in self.feature_selection_methods:
-                print(f"model_name {model_name}, feature_selection_method {feature_selection_method}")
+                start = time.time()
+                pipe_desc = f"model_name {model_name}, feature_selection_method {feature_selection_method}" 
+                print(pipe_desc)
                 
                 # create a sklearn pipeline
                 if self.scaling:
@@ -131,7 +136,11 @@ class GridSearchBase:
                     best_params = search.best_params_
                     best_quality = search.cv_results_['mean_test_f1_macro'][search.best_index_]
 
+                end = time.time()
+                elapsed_time = datetime.timedelta(seconds=round(end-start))
+                print(f'model: {pipe_desc}, time elapsed: {elapsed_time}')
                 print("__________________________________________________________________________")
+
 
             self.best_quality.append(best_quality)
             self.best_params.append(best_params)
