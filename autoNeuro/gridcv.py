@@ -56,6 +56,7 @@ class GridSearchBase:
         self.best_models = []
         self.best_quality = []
         self.best_feature_selection = []
+        self.total_metrics = {}
 
     def __generate_dimension_methods__(self):
         self.feature_selection_methods = [SelectKBest(f_classif, k='all')]
@@ -66,12 +67,20 @@ class GridSearchBase:
             
             # create a list of feature selection algos 
             self.feature_selection_methods += [SelectKBest(score_func=f_classif, k=n) for n in self.n_features]
-            self.feature_selection_methods += [SelectFromModel(
-                                                        estimator = RandomForestClassifier(n_estimators=int(self.X.shape[0] ** 0.5), random_state=self.random_state),
-                                                        max_features=n) for n in self.n_features]
-            self.feature_selection_methods += [SelectFromModel(
-                                                        estimator = LogisticRegression(random_state=self.random_state),
-                                                        max_features=n) for n in self.n_features]
+            self.feature_selection_methods += [
+                SelectFromModel(
+                    estimator=RandomForestClassifier(n_estimators=int(self.X.shape[0] ** 0.5), random_state=self.random_state),
+                    max_features=n,
+                )
+                for n in self.n_features
+            ]
+            self.feature_selection_methods += [
+                SelectFromModel(
+                    estimator=LogisticRegression(random_state=self.random_state),
+                    max_features=n,
+                )
+                for n in self.n_features
+            ]
             self.feature_selection_methods += [PCA(self.pca_level, random_state=self.random_state)]
 
     def train(self):
@@ -80,7 +89,7 @@ class GridSearchBase:
             best_model, best_quality, best_params,best_feature_selection = None, 0, None, None
             for feature_selection_method in self.feature_selection_methods:
                 start = time.time()
-                pipe_desc = f"model_name {model_name}, feature_selection_method {feature_selection_method}" 
+                pipe_desc = f"model_name: {model_name}, feature_selection_method: {feature_selection_method}" 
                 print(pipe_desc)
                 
                 # create a sklearn pipeline
@@ -108,11 +117,12 @@ class GridSearchBase:
                 print(pipe)
 
                 # run sklearn grid search w/ a given pipeline
+                metric_names = ['accuracy', 'roc_auc', 'f1_macro']
                 search = GridSearchCV(
                     pipe,
                     self.params_grids[model_name],
                     cv=self.kfolds,
-                    scoring=['accuracy', 'roc_auc', 'f1_macro'],
+                    scoring=metric_names,
                     refit='f1_macro',
                     return_train_score=True,
                     verbose=0,
@@ -128,7 +138,15 @@ class GridSearchBase:
                 print("F1 10 folds: {} +- {} std".
                       format(search.cv_results_['mean_test_f1_macro'][search.best_index_],
                              search.cv_results_['std_test_f1_macro'][search.best_index_]))
-                
+
+                # store test metrics for that pipeline
+                metrics = {}
+                for stat in ['mean', 'std']:
+                    for metric_name in metric_names:
+                        test_metric_name =  f'{stat}_test_{metric_name}'
+                        metrics[test_metric_name] = search.cv_results_[test_metric_name][search.best_index_]
+                self.total_metrics[pipe_desc] = metrics
+
                 # update best metrics based on f1 macro
                 if search.cv_results_['mean_test_f1_macro'][search.best_index_] > best_quality:
                     best_model = model
@@ -141,13 +159,12 @@ class GridSearchBase:
                 print(f'model: {pipe_desc}, time elapsed: {elapsed_time}')
                 print("__________________________________________________________________________")
 
-
             self.best_quality.append(best_quality)
             self.best_params.append(best_params)
             self.best_models.append(best_model)
             self.best_feature_selection.append(best_feature_selection)
 
-        return self.sorted_results()
+        return self.sorted_results(), self.total_metrics
 
     def sorted_results(self):
         # sort results by quality (f1)

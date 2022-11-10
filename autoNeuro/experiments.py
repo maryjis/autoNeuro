@@ -41,7 +41,7 @@ def run(
     dataset = combine_dataset(X, y, targets_name)
 
     grid_search = GridSearchBase(X, y, scaling=scaling)
-    sorted_results = grid_search.train()
+    sorted_results, total_metrics = grid_search.train()
 
     important_features = {}
 
@@ -91,5 +91,4 @@ def run(
         with open(result_path / f"model_best_{i}_metrics.txt", 'w') as fp:
             fp.write(results)
         
-
-    return best_result, best_f1
+    return best_result, best_f1, total_metrics
