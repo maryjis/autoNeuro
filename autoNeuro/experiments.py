@@ -67,18 +67,19 @@ def run(
         # recreate a pipeline
         pipe = pipe.set_params(**model_params)
  
-        # given data and pipeline, compute metrics over folds and feature importances
+        # given data and pipeline, compute metrics over folds and feature importances, plot ROC-curve
         info = ExperimentsInfo(X, y, pipe, experiment_name=experiment_name)
-        important_features_df, results = info.get_important_features(repeats)
+        important_features_df, results = info.get_important_features(repeats, result_path=result_path)
         
         # save results for the best model
         if i == 0:
             best_f1 = qualuty
             best_result = results
         
-        # compute some stats on data
+        # compute some stats on important features
         fs = FeaturesStats(dataset, important_features_df)
         important_features_df = fs.get_stats(plot_density=plot_density)
+
         important_features[str(model)] = important_features_df
         
         # save metrics report
@@ -86,6 +87,6 @@ def run(
             fp.write(results)
         
         # save feature importances
-        important_features_df.to_excel(result_path /f"model_best_{i}_important_features.xls",  index=False)
+        important_features_df.to_excel(result_path / f"model_best_{i}_important_features.xls",  index=False)
 
     return best_result, best_f1

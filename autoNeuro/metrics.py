@@ -1,3 +1,5 @@
+from typing import Optional
+from pathlib import Path
 from matplotlib import pyplot as plt
 import pandas as pd
 from sklearn.metrics import auc, plot_roc_curve, confusion_matrix, classification_report, accuracy_score, roc_auc_score
@@ -15,7 +17,7 @@ class ExperimentsInfo:
         self.counter = Counter()
         self.random_state = random_state
 
-    def calculate_most_common_entitis(self, topN=20, show_roc_auc=False):
+    def calculate_most_common_entitis(self, topN=20, show_roc_auc=False, result_path: Optional[Path] = None):
         # for each fold we save:
         tprs = []
         aucs = []
@@ -102,6 +104,10 @@ class ExperimentsInfo:
             ax.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
                    title="Receiver operating characteristic example")
             ax.legend(loc="lower right")
+
+            # save roc_curve in a file
+            if result_path:
+                plt.savefig(result_path / 'roc_curve.pdf')
             plt.show()
         
         # sum all confusion matrices
@@ -122,7 +128,7 @@ class ExperimentsInfo:
 
         return metric_dicts, mean_auc, matr, accuracy
 
-    def get_important_features(self, experiments_count):
+    def get_important_features(self, experiments_count: int, result_path: Optional[Path]=None):
         A_precisions = []
         A_recalls = []
         K_precisions = []
@@ -136,7 +142,7 @@ class ExperimentsInfo:
         for i in range(experiments_count):
             # show roc auc for the last experiment
             if i == (experiments_count-1):
-                metrics, mean_auc, confusions, accuracy = self.calculate_most_common_entitis(show_roc_auc=True)
+                metrics, mean_auc, confusions, accuracy = self.calculate_most_common_entitis(show_roc_auc=True, result_path=result_path)
             else:
                 metrics, mean_auc, confusions, accuracy = self.calculate_most_common_entitis()
 
