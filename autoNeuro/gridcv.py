@@ -1,6 +1,7 @@
 import time
 import datetime
 
+from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
@@ -18,10 +19,21 @@ from .constants import GRID_CONFIG_MODELS
 
 
 class GridSearchBase:
+
+    default_models = {
+        'lgb': LGBMClassifier(),
+        "xgb": XGBClassifier(),
+        "svm": SVC(),
+        "rf" : RandomForestClassifier(),
+        "lr" : LogisticRegression(),
+    }
+
     def __init__(
         self,
         X,
         y,
+        model_names=None,
+        params_grids=None,
         pca_level=15,
         random_state=42,
         n_splits=10,
@@ -36,21 +48,21 @@ class GridSearchBase:
         self.oversampling = oversampling
 
         # model types
-        self.grid_methods = {
-            "xgb": XGBClassifier(),
-            "svm": SVC(),
-            "rf" : RandomForestClassifier(),
-            "lr" : LogisticRegression(),
-        }
-        
-        # hardcoded configs 
-        self.params_grids = GRID_CONFIG_MODELS
+        if model_names is None:
+            self.models = self.default_models
+        else:
+            self.models = {name: self.default_models[name] for name in model_names}
 
-        self.__generate_dimension_methods__()
-        
+        # hardcoded configs
+        self.params_grids  = params_grids
+        if self.params_grids is None:
+            self.params_grids = GRID_CONFIG_MODELS
+
+        self.create_feature_selection_methods()
+
         # k-folder
         self.kfolds = StratifiedKFold(n_splits, shuffle=True, random_state=self.random_state)
-        
+
         # final results
         self.best_params = []
         self.best_models = []
@@ -58,14 +70,14 @@ class GridSearchBase:
         self.best_feature_selection = []
         self.total_metrics = {}
 
-    def __generate_dimension_methods__(self):
+    def create_feature_selection_methods(self):
         self.feature_selection_methods = [SelectKBest(f_classif, k='all')]
-        
+
         # num features > num samples
         if self.X.shape[1] > self.X.shape[0]:
             self.n_features = [int(self.X.shape[0] * 0.8), self.X.shape[0]]
-            
-            # create a list of feature selection algos 
+
+            # create a list of feature selection algos
             self.feature_selection_methods += [SelectKBest(score_func=f_classif, k=n) for n in self.n_features]
             self.feature_selection_methods += [
                 SelectFromModel(
@@ -81,39 +93,18 @@ class GridSearchBase:
                 )
                 for n in self.n_features
             ]
-            #self.feature_selection_methods += [PCA(self.pca_level, random_state=self.random_state)]
+            # self.feature_selection_methods += [PCA(self.pca_level, random_state=self.random_state)]
 
     def train(self):
         # for each model for each feature selection method
-        for model_name, model in self.grid_methods.items():
-            best_model, best_quality, best_params,best_feature_selection = None, 0, None, None
+        for model_name, model in self.models.items():
+            best_model, best_quality, best_params, best_feature_selection = None, 0, None, None
             for feature_selection_method in self.feature_selection_methods:
                 start = time.time()
-                pipe_desc = f"model_name: {model_name}, feature_selection_method: {feature_selection_method}" 
+                pipe_desc = f"model_name: {model_name}, feature_selection_method: {feature_selection_method}"
                 print(pipe_desc)
-                
-                # create a sklearn pipeline
-                if self.scaling:
-                    pipe = Pipeline([
-                                       ('scaler', StandardScaler()),
-                                       ("feature_selection", feature_selection_method),
-                                       ('model', model)])
-                    if self.oversampling:
-                        pipe = Pipeline([
-                            ('scaler', StandardScaler()), 
-                            ('oversampling', self.oversampling),
-                            ("feature_selection", feature_selection_method),
-                            ('model', model)])
-                else:
-                    pipe = Pipeline([
-                        ("feature_selection", feature_selection_method),
-                        ('model', model)])
 
-                    if self.oversampling:
-                        pipe = Pipeline([
-                            ('oversampling', self.oversampling),
-                            ("feature_selection", feature_selection_method),
-                            ('model', model)])
+                pipe = self.create_pipeline(model, feature_selection_method)
                 print(pipe)
 
                 # run sklearn grid search w/ a given pipeline
@@ -125,9 +116,9 @@ class GridSearchBase:
                     scoring=metric_names,
                     refit='f1_macro',
                     return_train_score=True,
-                    verbose=0,
+                    verbose=1,
                 ).fit(self.X, self.y)
-                
+
                 # print mean cv metrics with std
                 print("ROC AUC 10 folds: {} +- {} std".
                       format(search.cv_results_['mean_test_roc_auc'][search.best_index_],
@@ -166,9 +157,37 @@ class GridSearchBase:
 
         return self.sorted_results(), self.total_metrics
 
+    def create_pipeline(self, model, feature_selection_method):
+        if self.scaling:
+            pipe = Pipeline([
+               ('scaler', StandardScaler()),
+               ("feature_selection", feature_selection_method),
+               ('model', model)]
+            )
+            if self.oversampling:
+                pipe = Pipeline([
+                    ('scaler', StandardScaler()),
+                    ('oversampling', self.oversampling),
+                    ("feature_selection", feature_selection_method),
+                    ('model', model)])
+        else:
+            pipe = Pipeline([
+                ("feature_selection", feature_selection_method),
+                ('model', model)])
+
+            if self.oversampling:
+                pipe = Pipeline([
+                    ('oversampling', self.oversampling),
+                    ("feature_selection", feature_selection_method),
+                    ('model', model)])
+        return pipe
+
     def sorted_results(self):
         # sort results by quality (f1)
         results_list = zip(self.best_models, self.best_params, self.best_quality, self.best_feature_selection)
         results_list = sorted(results_list, key=lambda x: x[2], reverse=True)
         return results_list
 
+    @property
+    def supported_models(self):
+        return list(self.default_models.keys())
