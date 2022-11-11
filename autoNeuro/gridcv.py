@@ -81,7 +81,7 @@ class GridSearchBase:
                 )
                 for n in self.n_features
             ]
-            self.feature_selection_methods += [PCA(self.pca_level, random_state=self.random_state)]
+            #self.feature_selection_methods += [PCA(self.pca_level, random_state=self.random_state)]
 
     def train(self):
         # for each model for each feature selection method
