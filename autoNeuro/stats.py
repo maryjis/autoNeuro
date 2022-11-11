@@ -25,36 +25,39 @@ class FeaturesStats:
 
         return self.important_features
 
-    def check_features(self, feature_column, plot_density=True):
+    def check_features(self, feature_column: str, plot_density: bool = True):
         a_feature = self.dataset.loc[self.dataset["target"] == "Patient", feature_column]
         k_feature = self.dataset.loc[self.dataset["target"] == "Control", feature_column]
 
         # shapiro test between for two groups
         res_0 = shapiro(a_feature)
         res_1 = shapiro(k_feature)
-        print("Test normality: ", res_0[1], res_1[1])
-        
-        # mean feature value for each column
+        print("Test normality p-values: ", res_0[1], res_1[1])
+
+        # mean for each column
         print("Patient: ", a_feature.mean())
         print("Control: ", k_feature.mean())
-        
-        # if featurecol is not normal for both groups
-        if res_0[1] < 0.05 and res_1[1] < 0.05:
+
+        # if feature is normal for both groups
+        if res_0[1] >= 0.05 and res_1[1] >= 0.05:
             # test for equal variances
             res2 = levene(a_feature, k_feature)
-            print("Test homogenius:", res2)
+            print("Equal variances test p-value:", res2)
 
+            # vars are not equal
             if res2[1] < 0.05:
                 t_test_stat = ttest_ind(a_feature, k_feature, equal_var=False)
                 self.important_features.loc[self.important_features['feature_name'] == feature_column, "normality"] = True
                 self.important_features.loc[self.important_features['feature_name'] == feature_column, "p-value"] = t_test_stat.pvalue
                 self.important_features.loc[self.important_features['feature_name'] == feature_column, "test"] = "t-test"
+            # vars are equal
             else:
-                t_test_stat = mannwhitneyu(a_feature, k_feature)
+                t_test_stat = ttest_ind(a_feature, k_feature, equal_var=True)
+                #t_test_stat = mannwhitneyu(a_feature, k_feature)
                 self.important_features.loc[
                     self.important_features['feature_name'] == feature_column, "p-value"] = t_test_stat.pvalue
                 self.important_features.loc[
-                    self.important_features['feature_name'] == feature_column, "test"] = "mannwhitneyu"
+                    self.important_features['feature_name'] == feature_column, "test"] = "t-test"
         else:
             t_test_stat = mannwhitneyu(a_feature, k_feature)
             self.important_features.loc[
@@ -64,7 +67,7 @@ class FeaturesStats:
 
         print(t_test_stat)
 
-        # just plot feature prob densitty 
+        # just plot feature prob densitty
         if plot_density:
             sns.displot(self.dataset, x=feature_column, hue="target", kind="kde", common_norm=False)
             plt.show()
