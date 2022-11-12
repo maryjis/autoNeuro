@@ -1,5 +1,6 @@
 import time
 import datetime
+from typing import Dict, List
 
 from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
@@ -14,8 +15,42 @@ from sklearn.preprocessing import StandardScaler, Normalizer
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.impute import SimpleImputer
+from sklearn.metrics import accuracy_score, roc_auc_score, f1_score
 
 from .constants import GRID_CONFIG_MODELS
+
+
+def get_metrics_from_search(
+    search: GridSearchCV,
+    metric_names: List[str],
+    split_name: str = 'test',
+) -> Dict[str, float]:
+    ''' Extract metric values for the best model from GridSearchCV object '''
+    metrics = {}
+    for stat in ['mean', 'std']:
+        for metric_name in metric_names:
+            test_metric_name =  f'{stat}_{split_name}_{metric_name}'
+            metrics[test_metric_name] = search.cv_results_[test_metric_name][search.best_index_]
+    return metrics
+
+
+def print_metrics(metrics_dict, metric_names, split_name: str = 'test'):
+    ''' `metrics_dict` is a result of get_metrics_from_search '''
+    print('Best metrics on test')
+    for metric_name in metric_names:
+        mean = metrics_dict[f'mean_{split_name}_{metric_name}']
+        std = metrics_dict[f'std_{split_name}_{metric_name}']
+        print(f'\t{metric_name}: {mean:.2f} ± {std:.2f}')
+
+
+def compute_fold_metrics(pipe, X, y):
+    labels_pred = pipe.predict(X)
+
+    return {
+        'f1': f1_score(y, labels_pred),
+        'roc_auc': roc_auc_score(y, labels_pred),
+        'acc': accuracy_score(y, labels_pred),
+    }
 
 
 class GridSearchBase:
@@ -37,6 +72,7 @@ class GridSearchBase:
         pca_level=15,
         random_state=42,
         n_splits=10,
+        internal_n_splits=5,
         scaling=True,
         oversampling=None,
     ):
@@ -60,8 +96,10 @@ class GridSearchBase:
 
         self.create_feature_selection_methods()
 
-        # k-folder
+        # kfolds
         self.kfolds = StratifiedKFold(n_splits, shuffle=True, random_state=self.random_state)
+        self.internal_kfolds = StratifiedKFold(internal_n_splits, shuffle=True, random_state=self.random_state)
+        self.metric_names = ['accuracy', 'roc_auc', 'f1_macro']
 
         # final results
         self.best_params = []
@@ -101,42 +139,27 @@ class GridSearchBase:
             best_model, best_quality, best_params, best_feature_selection = None, 0, None, None
             for feature_selection_method in self.feature_selection_methods:
                 start = time.time()
-                pipe_desc = f"model_name: {model_name}, feature_selection_method: {feature_selection_method}"
+                pipe_desc = f'model_name: {model_name}, feature_selection_method: {feature_selection_method}'
                 print(pipe_desc)
 
                 pipe = self.create_pipeline(model, feature_selection_method)
                 print(pipe)
 
                 # run sklearn grid search w/ a given pipeline
-                metric_names = ['accuracy', 'roc_auc', 'f1_macro']
                 search = GridSearchCV(
                     pipe,
                     self.params_grids[model_name],
                     cv=self.kfolds,
-                    scoring=metric_names,
+                    scoring=self.metric_names,
                     refit='f1_macro',
                     return_train_score=True,
                     verbose=1,
                 ).fit(self.X, self.y)
 
-                # print mean cv metrics with std
-                print("ROC AUC 10 folds: {} +- {} std".
-                      format(search.cv_results_['mean_test_roc_auc'][search.best_index_],
-                             search.cv_results_['std_test_roc_auc'][search.best_index_]))
-                print("Accuracy 10 folds: {} +- {} std".
-                      format(search.cv_results_['mean_test_accuracy'][search.best_index_],
-                             search.cv_results_['std_test_accuracy'][search.best_index_]))
-                print("F1 10 folds: {} +- {} std".
-                      format(search.cv_results_['mean_test_f1_macro'][search.best_index_],
-                             search.cv_results_['std_test_f1_macro'][search.best_index_]))
-
-                # store test metrics for that pipeline
-                metrics = {}
-                for stat in ['mean', 'std']:
-                    for metric_name in metric_names:
-                        test_metric_name =  f'{stat}_test_{metric_name}'
-                        metrics[test_metric_name] = search.cv_results_[test_metric_name][search.best_index_]
+                # get mean+std for metrics on test, save and print
+                metrics = get_metrics_from_search(search, self.metric_names, split_name='test')
                 self.total_metrics[pipe_desc] = metrics
+                print_metrics(metrics, self.metric_names, split_name='test')
 
                 # update best metrics based on f1 macro
                 if search.cv_results_['mean_test_f1_macro'][search.best_index_] > best_quality:
@@ -156,6 +179,41 @@ class GridSearchBase:
             self.best_feature_selection.append(best_feature_selection)
 
         return self.sorted_results(), self.total_metrics
+
+    def nested_cv(self, X, y, pipe, model_name):
+        external_metrics = []
+        for train_idx, test_idx in self.kfolds.split(X, y):
+            X_train, y_train = X.iloc[train_idx], y.iloc[train_idx]
+            X_test, y_test = X.iloc[test_idx], y.iloc[test_idx]
+
+            # run gridsearch on train, get the best pipeline
+            search = GridSearchCV(
+                pipe,
+                self.params_grids[model_name],
+                cv=self.internal_kfolds,
+                scoring=self.metric_names,
+                refit='f1_macro',
+                return_train_score=True,
+                verbose=1,
+            ).fit(X_train, y_train)
+            best_pipe = search.best_estimator_
+
+            # assess quality on test
+            test_metrics = compute_fold_metrics(best_pipe, X_test, y_test)
+            external_metrics.append(test_metrics)
+
+        return external_metrics
+
+    def run_cv(self, X, y, pipe, model_name):
+        return GridSearchCV(
+            pipe,
+            self.params_grids[model_name],
+            cv=self.kfolds,
+            scoring=self.metric_names,
+            refit='f1_macro',
+            return_train_score=True,
+            verbose=1,
+        ).fit(X, y)
 
     def create_pipeline(self, model, feature_selection_method):
         if self.scaling:
