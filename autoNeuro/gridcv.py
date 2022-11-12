@@ -146,15 +146,7 @@ class GridSearchBase:
                 print(pipe)
 
                 # run sklearn grid search w/ a given pipeline
-                search = GridSearchCV(
-                    pipe,
-                    self.params_grids[model_name],
-                    cv=self.kfolds,
-                    scoring=self.metric_names,
-                    refit='f1_macro',
-                    return_train_score=True,
-                    verbose=1,
-                ).fit(self.X, self.y)
+                search = self.run_cv(self.X, self.y, pipe, model_name, self.kfolds)
 
                 # get mean+std for metrics on test, save and print
                 metrics = get_metrics_from_search(search, self.metric_names, split_name='test')
@@ -187,15 +179,7 @@ class GridSearchBase:
             X_test, y_test = X.iloc[test_idx], y.iloc[test_idx]
 
             # run gridsearch on train, get the best pipeline
-            search = GridSearchCV(
-                pipe,
-                self.params_grids[model_name],
-                cv=self.internal_kfolds,
-                scoring=self.metric_names,
-                refit='f1_macro',
-                return_train_score=True,
-                verbose=1,
-            ).fit(X_train, y_train)
+            search = self.run_cv(X_train, y_train, pipe, model_name, self.internal_kfolds)
             best_pipe = search.best_estimator_
 
             # assess quality on test
@@ -204,11 +188,11 @@ class GridSearchBase:
 
         return external_metrics
 
-    def run_cv(self, X, y, pipe, model_name):
+    def run_cv(self, X, y, pipe, model_name, kfolds):
         return GridSearchCV(
             pipe,
             self.params_grids[model_name],
-            cv=self.kfolds,
+            cv=kfolds,
             scoring=self.metric_names,
             refit='f1_macro',
             return_train_score=True,
