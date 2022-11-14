@@ -34,17 +34,17 @@ GRID_CONFIG_MODELS = {
         'model__random_state': [42],
    },
    "svm": {
-        'model__C': [0.01,0.1,1,3,10],
-        'model__kernel':['linear', 'rbf'],
+        'model__C': [0.01, 0.1, 1, 10],
+        'model__kernel': ['linear', 'rbf'],
         'model__class_weight': ["balanced", None],
         'model__probability': [True],
         'model__random_state': [42],
     },
     "rf": {
-        'model__n_estimators': [10, 50,100,500],
+        'model__n_estimators': [10, 50, 100],
         'model__max_depth':  [3,5,7,9],
-        'model__class_weight': ["balanced", "balanced_subsample", None],
-        'model__random_state': [42],
+        'model__class_weight': [None],
+        'model__random_state': [43],
     },
    "lr": {
         'model__class_weight': ["balanced", None],

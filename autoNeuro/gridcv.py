@@ -1,14 +1,17 @@
 import time
 import datetime
 from typing import Dict, List
+from tqdm import tqdm
 
+from frozendict import frozendict
+import pandas as pd
 from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.feature_selection import SelectFromModel, SelectKBest, f_classif, chi2
+from sklearn.feature_selection import SelectFromModel, SelectKBest, f_classif, chi2, VarianceThreshold
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, Normalizer
@@ -18,6 +21,17 @@ from sklearn.impute import SimpleImputer
 from sklearn.metrics import accuracy_score, roc_auc_score, f1_score
 
 from .constants import GRID_CONFIG_MODELS
+
+
+def report_time(f):
+    def inner(*args, **kwargs):
+        start = time.time()
+        res = f(*args, **kwargs)
+        end = time.time()
+        elapsed_time = datetime.timedelta(seconds=round(end - start))
+        print(f'Time elapsed: {elapsed_time}')
+        return res
+    return inner
 
 
 def get_metrics_from_search(
@@ -108,29 +122,35 @@ class GridSearchBase:
         self.best_feature_selection = []
         self.total_metrics = {}
 
+    def select_features(self):
+        Xs = []
+
     def create_feature_selection_methods(self):
-        self.feature_selection_methods = [SelectKBest(f_classif, k='all')]
+        #self.feature_selection_methods = [SelectKBest(f_classif, k='all')]
+        self.feature_selection_methods = [VarianceThreshold(threshold=0.0)]
 
         # num features > num samples
         if self.X.shape[1] > self.X.shape[0]:
-            self.n_features = [int(self.X.shape[0] * 0.8), self.X.shape[0]]
+            self.n_features = [round(self.X.shape[0] * 0.8)]
 
             # create a list of feature selection algos
             self.feature_selection_methods += [SelectKBest(score_func=f_classif, k=n) for n in self.n_features]
             self.feature_selection_methods += [
                 SelectFromModel(
-                    estimator=RandomForestClassifier(n_estimators=int(self.X.shape[0] ** 0.5), random_state=self.random_state),
-                    max_features=n,
+                    estimator=RandomForestClassifier(n_estimators=int(self.X.shape[0] ** 0.5),
+                    random_state=self.random_state,
+                ),
+                max_features=n,
                 )
                 for n in self.n_features
             ]
-            self.feature_selection_methods += [
-                SelectFromModel(
-                    estimator=LogisticRegression(random_state=self.random_state),
-                    max_features=n,
-                )
-                for n in self.n_features
-            ]
+#            self.feature_selection_methods += [
+#                SelectFromModel(
+#                    estimator=LogisticRegression(random_state=self.random_state),
+#                    max_features=n,
+#                )
+#                for n in self.n_features
+#            ]
             # self.feature_selection_methods += [PCA(self.pca_level, random_state=self.random_state)]
 
     def train(self):
@@ -172,21 +192,65 @@ class GridSearchBase:
 
         return self.sorted_results(), self.total_metrics
 
-    def nested_cv(self, X, y, pipe, model_name):
+    def sorted_results(self):
+        # sort results by quality (f1)
+        results_list = zip(self.best_models, self.best_params, self.best_quality, self.best_feature_selection)
+        results_list = sorted(results_list, key=lambda x: x[2], reverse=True)
+        return results_list
+
+    def nested_train(self):
+        total_results = []
+        for (model_name, pipe, pipe_params) in self.pipe_combinations():
+            print(f'External CV for {pipe}')
+            start = time.time()
+
+            fold_metrics, best_params = self.nested_cv(pipe, model_name)
+            fold_metrics = self.agg_fold_metrics(fold_metrics)
+            res = {
+                'model_name': model_name,
+                'feat_select': pipe['feature_selection'],
+                'best_params_per_fold': best_params,
+            }
+            res.update(fold_metrics)
+            total_results.append(res)
+
+            end = time.time()
+            elapsed_time = datetime.timedelta(seconds=round(end - start))
+            print(f'Pipe: {pipe}, elapsed time: {elapsed_time}')
+
+        return sorted(total_results, key=lambda d: d['f1_mean'], reverse=True)
+
+    def nested_cv(self, pipe, model_name):
         external_metrics = []
-        for train_idx, test_idx in self.kfolds.split(X, y):
-            X_train, y_train = X.iloc[train_idx], y.iloc[train_idx]
-            X_test, y_test = X.iloc[test_idx], y.iloc[test_idx]
+        best_params_list = []
+        for train_idx, test_idx in self.kfolds.split(self.X, self.y):
+            X_train, y_train = self.X.iloc[train_idx], self.y.iloc[train_idx]
+            X_test, y_test = self.X.iloc[test_idx], self.y.iloc[test_idx]
 
             # run gridsearch on train, get the best pipeline
             search = self.run_cv(X_train, y_train, pipe, model_name, self.internal_kfolds)
             best_pipe = search.best_estimator_
+            best_params = search.best_params_
 
             # assess quality on test
             test_metrics = compute_fold_metrics(best_pipe, X_test, y_test)
-            external_metrics.append(test_metrics)
 
-        return external_metrics
+            # update results
+            external_metrics.append(test_metrics)
+            best_params_list.append(frozendict(best_params))
+
+        return external_metrics, best_params_list
+
+    def agg_fold_metrics(self, metrics):
+        stat_names = ['mean', 'std']
+        df = pd.DataFrame(metrics)
+        stats = df.agg(stat_names, axis=0)
+
+        return {
+            f'{c}_{s}': stats.loc[s, c]
+            for c in df.columns
+            for s in stat_names
+        }
 
     def run_cv(self, X, y, pipe, model_name, kfolds):
         return GridSearchCV(
@@ -196,8 +260,15 @@ class GridSearchBase:
             scoring=self.metric_names,
             refit='f1_macro',
             return_train_score=True,
-            verbose=1,
+            verbose=0,
         ).fit(X, y)
+
+    def pipe_combinations(self):
+        for model_name, model in self.models.items():
+            for feature_selection_method in self.feature_selection_methods:
+                pipe_params = self.params_grids[model_name]
+                pipe = self.create_pipeline(model, feature_selection_method)
+                yield (model_name, pipe, pipe_params)
 
     def create_pipeline(self, model, feature_selection_method):
         if self.scaling:
@@ -223,12 +294,6 @@ class GridSearchBase:
                     ("feature_selection", feature_selection_method),
                     ('model', model)])
         return pipe
-
-    def sorted_results(self):
-        # sort results by quality (f1)
-        results_list = zip(self.best_models, self.best_params, self.best_quality, self.best_feature_selection)
-        results_list = sorted(results_list, key=lambda x: x[2], reverse=True)
-        return results_list
 
     @property
     def supported_models(self):
