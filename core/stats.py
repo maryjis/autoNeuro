@@ -33,12 +33,12 @@ class FeaturesStats():
         print("Patient: ", a_feature.mean())
         print("Control: ", k_feature.mean())
 
-        if res_0[1] < 0.05 and res_1[1] < 0.05:
+        if res_0[1] > 0.05 and res_1[1] > 0.05:
             res2 = levene(self.dataset.loc[self.dataset["target"] == "Patient"][feature_column],
                           self.dataset.loc[self.dataset["target"] == "Control"][feature_column])
             print("Test homogenius:", res2)
 
-            if res2[1] < 0.05:
+            if res2[1] > 0.05:
                 t_test_stat = ttest_ind(a_feature, k_feature, equal_var=False)
                 self.important_features.loc[self.important_features['feature_name'] == feature_column, "normality"] = True
                 self.important_features.loc[self.important_features['feature_name'] == feature_column, "p-value"] = t_test_stat.pvalue
