@@ -22,6 +22,14 @@ from sklearn.metrics import accuracy_score, roc_auc_score, f1_score
 
 from .constants import GRID_CONFIG_MODELS
 
+DEFAULT_MODELS = {
+    'lgb': LGBMClassifier(),
+    "xgb": XGBClassifier(),
+    "svm": SVC(),
+    "rf" : RandomForestClassifier(),
+    "lr" : LogisticRegression(),
+}
+
 
 def report_time(f):
     def inner(*args, **kwargs):
@@ -67,15 +75,42 @@ def compute_fold_metrics(pipe, X, y):
     }
 
 
-class GridSearchBase:
+def create_pipeline(
+    model,
+    feature_selection_method,
+    scaling=False,
+    oversampling=False,
+):
+    if isinstance(model, str):
+        model = DEFAULT_MODELS[model]
 
-    default_models = {
-        'lgb': LGBMClassifier(),
-        "xgb": XGBClassifier(),
-        "svm": SVC(),
-        "rf" : RandomForestClassifier(),
-        "lr" : LogisticRegression(),
-    }
+    if scaling:
+        pipe = Pipeline([
+           ('scaler', StandardScaler()),
+           ("feature_selection", feature_selection_method),
+           ('model', model)]
+        )
+        if oversampling:
+            pipe = Pipeline([
+                ('scaler', StandardScaler()),
+                ('oversampling', oversampling),
+                ("feature_selection", feature_selection_method),
+                ('model', model)])
+    else:
+        pipe = Pipeline([
+            ("feature_selection", feature_selection_method),
+            ('model', model)])
+
+        if oversampling:
+            pipe = Pipeline([
+                ('oversampling', oversampling),
+                ("feature_selection", feature_selection_method),
+                ('model', model)])
+    return pipe
+
+
+class GridSearchBase:
+    default_models = DEFAULT_MODELS
 
     def __init__(
         self,
@@ -89,6 +124,7 @@ class GridSearchBase:
         internal_n_splits=5,
         scaling=True,
         oversampling=None,
+        n_jobs=1,
     ):
         self.X = X
         self.y = y
@@ -96,6 +132,7 @@ class GridSearchBase:
         self.pca_level = pca_level
         self.scaling = scaling
         self.oversampling = oversampling
+        self.n_jobs = n_jobs
 
         # model types
         if model_names is None:
@@ -260,6 +297,7 @@ class GridSearchBase:
             scoring=self.metric_names,
             refit='f1_macro',
             return_train_score=True,
+            n_jobs=self.n_jobs,
             verbose=0,
         ).fit(X, y)
 

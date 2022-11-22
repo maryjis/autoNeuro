@@ -8,6 +8,25 @@ from collections import Counter
 from sklearn.model_selection import StratifiedKFold
 
 
+def get_feature_importances(pipe, X, max_features=None):
+    if hasattr(pipe['feature_selection'], 'get_support'):
+        col_idx = pipe['feature_selection'].get_support(indices=True)
+        selected_features = list(X.columns[col_idx])
+
+    # get feature importances from the model in the pipeline
+    # as a list of tuples (name, importance)
+    model = pipe['model']
+    importances = []
+    if hasattr(model, 'feature_importances_'):
+        importances = list(zip(selected_features , model.feature_importances_))
+        importances = sorted(importances, key=lambda x: abs(x[1]), reverse=True)[:max_features]
+    elif hasattr(model, 'coef_'):
+        importances = zip(selected_features, model.coef_[0, :])
+        importances = sorted(importances, key=lambda x: abs(x[1]), reverse=True)[:max_features]
+
+    return Counter([x[0] for x in importances])
+
+
 class ExperimentsInfo:
     def __init__(self, X, y, pipe, experiment_name, random_state=42):
         self.X = X
@@ -33,16 +52,16 @@ class ExperimentsInfo:
 
         if show_roc_auc:
             fig, ax = plt.subplots(figsize=(11, 10))
-        
+
         # loop over folds
         for i, (train_index, test_index) in enumerate(kf.split(self.X, self.y)):
             # resplit into train and test
             X_train, X_test = self.X.iloc[train_index], self.X.iloc[test_index]
             y_train, y_test = self.y.iloc[train_index], self.y.iloc[test_index]
-            
+
             # refit to the current fold
             self.pipe = self.pipe.fit(X_train, y_train)
-            
+
             # get the indices of the selected features and select them in X
             if hasattr(self.pipe['feature_selection'], 'get_support'):
                 col_idx = self.pipe['feature_selection'].get_support(indices=True)
@@ -61,7 +80,7 @@ class ExperimentsInfo:
                 interp_tpr[0] = 0.0
                 tprs.append(interp_tpr)
                 aucs.append(viz.roc_auc)
- 
+
             # predict labels and probas
             predict_values = self.pipe.predict(X_test)
             prob_value = self.pipe.predict_proba(X_test)
@@ -69,7 +88,7 @@ class ExperimentsInfo:
             predicted_values.append(predict_values)
             true_values.append(y_test)
             prob_values.append(prob_value)
- 
+
             # get feature importances from the model in the pipeline
             # as a list of tuples (name, importance)
             importances = []
@@ -113,17 +132,17 @@ class ExperimentsInfo:
             if result_path:
                 plt.savefig(result_path / 'roc_curve.pdf')
             plt.show()
-        
+
         # sum all confusion matrices
         matr = confusions[0]
         for conf in confusions[1:]:
             matr += conf
-        
+
         # concat predicts for all folds
         true_values = np.concatenate(true_values)
         predicted_values = np.concatenate(predicted_values)
         prob_values = np.concatenate(prob_values)
-        
+
         # create a total report
         metric_dicts = classification_report(true_values, predicted_values, output_dict=True, zero_division=0)
 
@@ -141,8 +160,8 @@ class ExperimentsInfo:
         confusions_all = []
         f1s = []
         accuracies = []
-        
-        # run `self.calculate_most_common_entitis` for each fold 
+
+        # run `self.calculate_most_common_entitis` for each fold
         for i in range(experiments_count):
             # show roc auc for the last experiment
             if i == (experiments_count-1):
@@ -160,7 +179,7 @@ class ExperimentsInfo:
             accuracies.append(accuracy)
 
         print("--------------------")
- 
+
         # convert to numpy arrays
         A_precisions, A_recalls, K_precisions, K_recalls, mean_aucs, f1s,accuracies = np.array(A_precisions), np.array(
             A_recalls), np.array(K_precisions), np.array(K_recalls), np.array(mean_aucs), np.array(f1s), np.array(accuracies)

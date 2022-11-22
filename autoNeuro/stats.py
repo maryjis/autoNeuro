@@ -4,6 +4,42 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 
+def get_feature_stats(dataset, feature_column):
+    res = {'feature_column': feature_column}
+
+    a_feature = dataset.loc[dataset["target"] == "Patient", feature_column]
+    k_feature = dataset.loc[dataset["target"] == "Control", feature_column]
+
+    # shapiro test between for two groups
+    res_0 = shapiro(a_feature)
+    res_1 = shapiro(k_feature)
+
+    # if feature is normal for both groups
+    if res_0[1] >= 0.05 and res_1[1] >= 0.05:
+        # test for equal variances
+        res2 = levene(a_feature, k_feature)
+
+        res["normality"] = True
+        # vars are not equal
+        if res2[1] < 0.05:
+            t_test_stat = ttest_ind(a_feature, k_feature, equal_var=False)
+            res["p-value"] = t_test_stat.pvalue
+            res["test"] = "t-test"
+        # vars are equal
+        else:
+            t_test_stat = ttest_ind(a_feature, k_feature, equal_var=True)
+            #t_test_stat = mannwhitneyu(a_feature, k_feature)
+            res["p-value"] = t_test_stat.pvalue
+            res["test"] = "t-test"
+    else:
+        t_test_stat = mannwhitneyu(a_feature, k_feature)
+        res["p-value"] = t_test_stat.pvalue
+        res["test"] = "mannwhitneyu"
+        res["normality"] = False
+
+    return res
+
+
 class FeaturesStats:
     def __init__(self, dataset, important_features):
         self.dataset = dataset

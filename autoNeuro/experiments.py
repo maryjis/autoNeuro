@@ -86,10 +86,12 @@ def run(
         # check if important features is a subset of original features
         imp_feats = set(important_features_df['feature_name'])
         if len(imp_feats & set(X.columns)) == len(imp_feats):
+
             # compute some stats on important features
             fs = FeaturesStats(dataset, important_features_df)
             important_features_df = fs.get_stats(plot_density=plot_density)
             important_features[str(model)] = important_features_df
+
             # save feature importances
             important_features_df.to_excel(result_path / f"model_best_{i}_important_features.xls",  index=False)
         else:
@@ -101,3 +103,34 @@ def run(
 
     print(f'Best result: {best_result}')
     return best_result, best_f1, total_metrics
+
+
+def run_nested(
+    X, y,
+    experiment_name,
+    out_name,
+    model_names=None,
+    params_grids=None,
+    n_splits=10,
+    internal_n_splits=10,
+    scaling=False,
+    n_jobs=1,
+):
+    result_path = Path(EXPERIMENTS_PATH) / experiment_name
+    if not result_path.exists():
+        os.mkdir(result_path)
+
+    print(f'Dataset: {experiment_name}')
+    gs = GridSearchBase(
+        X,
+        y,
+        model_names=model_names,
+        params_grids=params_grids,
+        random_state=43,
+        n_splits=n_splits,
+        internal_n_splits=internal_n_splits,
+        scaling=scaling,
+        n_jobs=n_jobs,
+    )
+    nested_res = pd.DataFrame(gs.nested_train())
+    nested_res.to_pickle(result_path /  f'{out_name}.pkl')
