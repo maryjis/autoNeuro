@@ -81,7 +81,7 @@ class FeaturesStats:
             print("Equal variances test p-value:", res2)
 
             # vars are not equal
-            if res2[1] < 0.05:
+            if res2[1] > 0.05:
                 t_test_stat = ttest_ind(a_feature, k_feature, equal_var=False)
                 self.important_features.loc[self.important_features['feature_name'] == feature_column, "normality"] = True
                 self.important_features.loc[self.important_features['feature_name'] == feature_column, "p-value"] = t_test_stat.pvalue
