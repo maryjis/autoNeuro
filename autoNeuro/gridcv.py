@@ -67,10 +67,11 @@ def print_metrics(metrics_dict, metric_names, split_name: str = 'test'):
 
 def compute_fold_metrics(pipe, X, y):
     labels_pred = pipe.predict(X)
+    proba_pred = pipe.predict_proba(X)[:, 1]
 
     return {
         'f1': f1_score(y, labels_pred),
-        'roc_auc': roc_auc_score(y, labels_pred),
+        'roc_auc': roc_auc_score(y, proba_pred),
         'acc': accuracy_score(y, labels_pred),
     }
 
