@@ -171,7 +171,7 @@ class GridSearchBase:
 
         # num features > num samples
         if self.X.shape[1] > self.X.shape[0]:
-            self.n_features = [round(self.X.shape[0] * 0.8), round(self.X.shape[0] * 0.5), 3]
+            self.n_features = [round(self.X.shape[0] * 0.5), round(self.X.shape[0] * 0.1), 3]
 
             if feature_reductions:
                 self.feature_selection_methods +=[Isomap(n_components=n) for n in self.n_features]
