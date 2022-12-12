@@ -19,6 +19,8 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import accuracy_score, roc_auc_score, f1_score
+from sklearn.manifold import LocallyLinearEmbedding
+from sklearn.manifold import Isomap
 
 from .constants import GRID_CONFIG_MODELS
 
@@ -163,33 +165,37 @@ class GridSearchBase:
     def select_features(self):
         Xs = []
 
-    def create_feature_selection_methods(self):
+    def create_feature_selection_methods(self, feature_reductions =True):
         #self.feature_selection_methods = [SelectKBest(f_classif, k='all')]
         self.feature_selection_methods = [VarianceThreshold(threshold=0.0)]
 
         # num features > num samples
         if self.X.shape[1] > self.X.shape[0]:
-            self.n_features = [round(self.X.shape[0] * 0.8)]
+            self.n_features = [round(self.X.shape[0] * 0.8), round(self.X.shape[0] * 0.5), 3]
 
-            # create a list of feature selection algos
-            self.feature_selection_methods += [SelectKBest(score_func=f_classif, k=n) for n in self.n_features]
-            self.feature_selection_methods += [
+            if feature_reductions:
+                self.feature_selection_methods +=[Isomap(n_components=n) for n in self.n_features]
+                self.feature_selection_methods +=[LocallyLinearEmbedding(n_components=n,method='modified', n_neighbors=10)
+                                              for n in self.n_features]
+                self.feature_selection_methods += [PCA(n, random_state=self.random_state) for n in self.n_features]
+            else:
+                self.feature_selection_methods += [
+                    SelectFromModel(
+                        estimator=LogisticRegression(random_state=self.random_state),
+                        max_features=n,
+                    )
+                    for n in self.n_features
+                ]
+                self.feature_selection_methods += [SelectKBest(score_func=f_classif, k=n) for n in self.n_features]
+                self.feature_selection_methods += [
                 SelectFromModel(
                     estimator=RandomForestClassifier(n_estimators=int(self.X.shape[0] ** 0.5),
-                    random_state=self.random_state,
-                ),
-                max_features=n,
+                                                     random_state=self.random_state,
+                                                     ),
+                    max_features=n,
                 )
                 for n in self.n_features
             ]
-#            self.feature_selection_methods += [
-#                SelectFromModel(
-#                    estimator=LogisticRegression(random_state=self.random_state),
-#                    max_features=n,
-#                )
-#                for n in self.n_features
-#            ]
-            # self.feature_selection_methods += [PCA(self.pca_level, random_state=self.random_state)]
 
     def train(self):
         # for each model for each feature selection method
