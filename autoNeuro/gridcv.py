@@ -175,7 +175,7 @@ class GridSearchBase:
 
             if feature_reductions:
                 self.feature_selection_methods +=[Isomap(n_components=n) for n in self.n_features]
-                self.feature_selection_methods +=[LocallyLinearEmbedding(n_components=n,method='modified', n_neighbors=10)
+                self.feature_selection_methods +=[LocallyLinearEmbedding(n_components=n,method='modified', n_neighbors=n+5)
                                               for n in self.n_features]
                 self.feature_selection_methods += [PCA(n, random_state=self.random_state) for n in self.n_features]
             else:
