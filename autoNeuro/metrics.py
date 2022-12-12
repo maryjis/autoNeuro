@@ -2,7 +2,8 @@ from typing import Optional
 from pathlib import Path
 from matplotlib import pyplot as plt
 import pandas as pd
-from sklearn.metrics import auc, plot_roc_curve, confusion_matrix, classification_report, accuracy_score, roc_auc_score
+from sklearn.metrics import auc, confusion_matrix, classification_report, accuracy_score, roc_auc_score
+from scikitplot.metrics import plot_roc_curve
 import numpy as np
 from collections import Counter
 from sklearn.model_selection import StratifiedKFold
