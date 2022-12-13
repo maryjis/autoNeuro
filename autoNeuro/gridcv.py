@@ -127,6 +127,7 @@ class GridSearchBase:
         internal_n_splits=5,
         scaling=True,
         oversampling=None,
+        feature_reductions =False,
         n_jobs=1,
     ):
         self.X = X
@@ -148,7 +149,7 @@ class GridSearchBase:
         if self.params_grids is None:
             self.params_grids = GRID_CONFIG_MODELS
 
-        self.create_feature_selection_methods()
+        self.create_feature_selection_methods(feature_reductions)
 
         # kfolds
         self.kfolds = StratifiedKFold(n_splits, shuffle=True, random_state=self.random_state)
@@ -171,14 +172,16 @@ class GridSearchBase:
 
         # num features > num samples
         if self.X.shape[1] > self.X.shape[0]:
-            self.n_features = [round(self.X.shape[0] * 0.3), round(self.X.shape[0] * 0.1), 3]
+
 
             if feature_reductions:
+                self.n_features = [round(self.X.shape[0] * 0.3), round(self.X.shape[0] * 0.1), 3]
                 self.feature_selection_methods +=[Isomap(n_components=n) for n in self.n_features]
                 self.feature_selection_methods +=[LocallyLinearEmbedding(n_components=n,method='modified', n_neighbors=n+5)
                                               for n in self.n_features]
                 self.feature_selection_methods += [PCA(n, random_state=self.random_state) for n in self.n_features]
             else:
+                self.n_features = [round(self.X.shape[0] * 0.8), round(self.X.shape[0] * 0.5)]
                 self.feature_selection_methods += [
                     SelectFromModel(
                         estimator=LogisticRegression(random_state=self.random_state),
