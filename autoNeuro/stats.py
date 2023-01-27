@@ -20,12 +20,12 @@ def get_feature_stats(dataset, feature_column):
         res2 = levene(a_feature, k_feature)
 
         res["normality"] = True
-        # vars are not equal
-        if res2[1] < 0.05:
+        # vars are equal
+        if res2[1] > 0.05:
             t_test_stat = ttest_ind(a_feature, k_feature, equal_var=False)
             res["p-value"] = t_test_stat.pvalue
             res["test"] = "t-test"
-        # vars are equal
+        # vars are not equal
         else:
             t_test_stat = ttest_ind(a_feature, k_feature, equal_var=True)
             #t_test_stat = mannwhitneyu(a_feature, k_feature)
