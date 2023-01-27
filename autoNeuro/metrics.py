@@ -49,7 +49,7 @@ class ExperimentsInfo:
         mean_fpr = np.linspace(0, 1, 100)
 
         # resplit data into folds
-        kf = StratifiedKFold(n_splits=10, shuffle=True, random_state=self.random_state)
+        kf = StratifiedKFold(n_splits=10, shuffle=True)
 
         if show_roc_auc:
             fig, ax = plt.subplots(figsize=(11, 10))
