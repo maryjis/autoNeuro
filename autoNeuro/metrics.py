@@ -57,7 +57,7 @@ class ExperimentsInfo:
 
         # resplit data into folds
         print("ExperimentsInfo: not random state")
-        kf = StratifiedKFold(n_splits=10, shuffle=True)
+        kf = StratifiedKFold(n_splits=10, shuffle=True,random_state=self.random_state)
 
         if show_roc_auc:
             fig, ax = plt.subplots(figsize=(11, 10))
