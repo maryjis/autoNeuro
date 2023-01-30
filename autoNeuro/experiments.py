@@ -4,10 +4,17 @@ from pathlib import Path
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from .gridcv import GridSearchBase
-from .metrics import ExperimentsInfo
-from .stats import FeaturesStats
+from autoNeuro.gridcv import GridSearchBase
+from autoNeuro.metrics import ExperimentsInfo
+from autoNeuro.stats import FeaturesStats
+import numpy as np
+import random
+import os
 
+SEED =1380
+np.random.seed(SEED)
+random.seed(SEED)
+os.environ['PYTHONHASHSEED'] = str(SEED)
 
 def warn(*args, **kwargs):
     pass

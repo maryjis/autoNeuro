@@ -2,11 +2,17 @@ import pandas as pd
 from scipy.stats import ttest_ind, shapiro, levene, mannwhitneyu
 import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
+import random
+import os
 
+SEED =1380
+np.random.seed(SEED)
+random.seed(SEED)
+os.environ['PYTHONHASHSEED'] = str(SEED)
 
 def get_feature_stats(dataset, feature_column):
     res = {'feature_column': feature_column}
-
     a_feature = dataset.loc[dataset["target"] == "Patient", feature_column]
     k_feature = dataset.loc[dataset["target"] == "Control", feature_column]
 
@@ -80,13 +86,13 @@ class FeaturesStats:
             res2 = levene(a_feature, k_feature)
             print("Equal variances test p-value:", res2)
 
-            # vars are not equal
+            # vars are equal
             if res2[1] > 0.05:
                 t_test_stat = ttest_ind(a_feature, k_feature, equal_var=False)
                 self.important_features.loc[self.important_features['feature_name'] == feature_column, "normality"] = True
                 self.important_features.loc[self.important_features['feature_name'] == feature_column, "p-value"] = t_test_stat.pvalue
                 self.important_features.loc[self.important_features['feature_name'] == feature_column, "test"] = "t-test"
-            # vars are equal
+            # vars are not equal
             else:
                 t_test_stat = ttest_ind(a_feature, k_feature, equal_var=True)
                 #t_test_stat = mannwhitneyu(a_feature, k_feature)

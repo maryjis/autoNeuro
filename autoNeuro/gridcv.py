@@ -22,6 +22,15 @@ from sklearn.metrics import accuracy_score, roc_auc_score, f1_score
 from sklearn.manifold import LocallyLinearEmbedding
 from sklearn.manifold import Isomap
 
+import numpy as np
+import random
+import os
+
+SEED =1380
+np.random.seed(SEED)
+random.seed(SEED)
+os.environ['PYTHONHASHSEED'] = str(SEED)
+
 from .constants import GRID_CONFIG_MODELS
 
 DEFAULT_MODELS = {
@@ -202,6 +211,7 @@ class GridSearchBase:
 
     def train(self):
         # for each model for each feature selection method
+        print(self.feature_selection_methods)
         for model_name, model in self.models.items():
             best_model, best_quality, best_params, best_feature_selection = None, 0, None, None
             for feature_selection_method in self.feature_selection_methods:

@@ -7,7 +7,14 @@ from scikitplot.metrics import plot_roc_curve
 import numpy as np
 from collections import Counter
 from sklearn.model_selection import StratifiedKFold
+import numpy as np
+import random
+import os
 
+SEED =1380
+np.random.seed(SEED)
+random.seed(SEED)
+os.environ['PYTHONHASHSEED'] = str(SEED)
 
 def get_feature_importances(pipe, X, max_features=None):
     if hasattr(pipe['feature_selection'], 'get_support'):
@@ -49,6 +56,7 @@ class ExperimentsInfo:
         mean_fpr = np.linspace(0, 1, 100)
 
         # resplit data into folds
+        print("ExperimentsInfo: not random state")
         kf = StratifiedKFold(n_splits=10, shuffle=True)
 
         if show_roc_auc:
@@ -73,7 +81,6 @@ class ExperimentsInfo:
 
             if show_roc_auc:
                 viz = plot_roc_curve(self.pipe, X_test, y_test,
-                                 name='ROC fold {}'.format(i),
                                  alpha=0.3, lw=1, ax=ax, color='dimgray')
 
                 # build an interpolated roc curve array from a roc curve plot
@@ -166,7 +173,7 @@ class ExperimentsInfo:
         for i in range(experiments_count):
             # show roc auc for the last experiment
             if i == (experiments_count-1):
-                metrics, mean_auc, confusions, accuracy = self.calculate_most_common_entitis(show_roc_auc=True, result_path=result_path)
+                metrics, mean_auc, confusions, accuracy = self.calculate_most_common_entitis(show_roc_auc=False, result_path=result_path)
             else:
                 metrics, mean_auc, confusions, accuracy = self.calculate_most_common_entitis()
 
