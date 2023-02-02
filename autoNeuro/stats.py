@@ -88,18 +88,18 @@ class FeaturesStats:
 
             # vars are equal
             if res2[1] > 0.05:
-                t_test_stat = ttest_ind(a_feature, k_feature, equal_var=False)
+                t_test_stat = ttest_ind(a_feature, k_feature, equal_var=True)
                 self.important_features.loc[self.important_features['feature_name'] == feature_column, "normality"] = True
                 self.important_features.loc[self.important_features['feature_name'] == feature_column, "p-value"] = t_test_stat.pvalue
                 self.important_features.loc[self.important_features['feature_name'] == feature_column, "test"] = "t-test"
             # vars are not equal
             else:
-                t_test_stat = ttest_ind(a_feature, k_feature, equal_var=True)
-                #t_test_stat = mannwhitneyu(a_feature, k_feature)
+                #t_test_stat = ttest_ind(a_feature, k_feature, equal_var=False)
+                t_test_stat = mannwhitneyu(a_feature, k_feature)
                 self.important_features.loc[
                     self.important_features['feature_name'] == feature_column, "p-value"] = t_test_stat.pvalue
                 self.important_features.loc[
-                    self.important_features['feature_name'] == feature_column, "test"] = "t-test"
+                    self.important_features['feature_name'] == feature_column, "test"] = "mannwhitneyu"
         else:
             t_test_stat = mannwhitneyu(a_feature, k_feature)
             self.important_features.loc[
