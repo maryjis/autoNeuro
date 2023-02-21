@@ -190,7 +190,7 @@ class GridSearchBase:
                                               for n in self.n_features]
                 self.feature_selection_methods += [PCA(n, random_state=self.random_state) for n in self.n_features]
             else:
-                self.n_features = [round(self.X.shape[0] * 0.8), round(self.X.shape[0] * 0.5)]
+                self.n_features = [round(self.X.shape[0]), round(self.X.shape[0] * 0.8)]
                 self.feature_selection_methods += [
                     SelectFromModel(
                         estimator=LogisticRegression(random_state=self.random_state),
