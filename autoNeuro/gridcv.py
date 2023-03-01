@@ -261,14 +261,17 @@ class GridSearchBase:
             print(f'External CV for {pipe}')
             start = time.time()
 
-            fold_metrics, best_params = self.nested_cv(pipe, model_name)
+            fold_metrics,val_metrics, best_params = self.nested_cv(pipe, model_name)
             fold_metrics = self.agg_fold_metrics(fold_metrics)
+            val_metrics = self.agg_fold_metrics(val_metrics, metrics_type='val')
             res = {
                 'model_name': model_name,
                 'feat_select': pipe['feature_selection'],
                 'best_params_per_fold': best_params,
             }
             res.update(fold_metrics)
+            res.update(val_metrics)
+
             total_results.append(res)
 
             end = time.time()
@@ -288,6 +291,7 @@ class GridSearchBase:
             search = self.run_cv(X_train, y_train, pipe, model_name, self.internal_kfolds)
             best_pipe = search.best_estimator_
             best_params = search.best_params_
+            val_metrics ={'f1':search.best_score_}
 
             # assess quality on test
             test_metrics = compute_fold_metrics(best_pipe, X_test, y_test)
@@ -296,15 +300,15 @@ class GridSearchBase:
             external_metrics.append(test_metrics)
             best_params_list.append(frozendict(best_params))
 
-        return external_metrics, best_params_list
+        return external_metrics,val_metrics, best_params_list
 
-    def agg_fold_metrics(self, metrics):
+    def agg_fold_metrics(self, metrics, metrics_type="test"):
         stat_names = ['mean', 'std']
         df = pd.DataFrame(metrics)
         stats = df.agg(stat_names, axis=0)
 
         return {
-            f'{c}_{s}': stats.loc[s, c]
+            f'{metrics_type}_{c}_{s}': stats.loc[s, c]
             for c in df.columns
             for s in stat_names
         }
