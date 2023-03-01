@@ -278,7 +278,7 @@ class GridSearchBase:
             elapsed_time = datetime.timedelta(seconds=round(end - start))
             print(f'Pipe: {pipe}, elapsed time: {elapsed_time}')
 
-        return sorted(total_results, key=lambda d: d['f1_mean'], reverse=True)
+        return sorted(total_results, key=lambda d: d['val_f1_mean'], reverse=True)
 
     def nested_cv(self, pipe, model_name):
         external_metrics = []
