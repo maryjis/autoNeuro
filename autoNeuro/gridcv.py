@@ -282,6 +282,7 @@ class GridSearchBase:
 
     def nested_cv(self, pipe, model_name):
         external_metrics = []
+        external_val_metrics =[]
         best_params_list = []
         for train_idx, test_idx in self.kfolds.split(self.X, self.y):
             X_train, y_train = self.X.iloc[train_idx], self.y.iloc[train_idx]
@@ -291,16 +292,17 @@ class GridSearchBase:
             search = self.run_cv(X_train, y_train, pipe, model_name, self.internal_kfolds)
             best_pipe = search.best_estimator_
             best_params = search.best_params_
-            val_metrics ={'f1':search.best_score_}
-
+            # add best metric on val
+            val_metrics = {'f1': search.best_score_}
             # assess quality on test
             test_metrics = compute_fold_metrics(best_pipe, X_test, y_test)
 
             # update results
             external_metrics.append(test_metrics)
+            external_val_metrics.append(val_metrics)
             best_params_list.append(frozendict(best_params))
 
-        return external_metrics,val_metrics, best_params_list
+        return external_metrics,external_val_metrics, best_params_list
 
     def agg_fold_metrics(self, metrics, metrics_type="test"):
         stat_names = ['mean', 'std']
