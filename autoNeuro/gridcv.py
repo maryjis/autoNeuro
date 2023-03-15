@@ -81,7 +81,7 @@ def compute_fold_metrics(pipe, X, y):
     proba_pred = pipe.predict_proba(X)[:, 1]
 
     return {
-        'f1': f1_score(y, labels_pred),
+        'f1': f1_score(y, labels_pred,average="macro"),
         'roc_auc': roc_auc_score(y, proba_pred),
         'acc': accuracy_score(y, labels_pred),
     }
