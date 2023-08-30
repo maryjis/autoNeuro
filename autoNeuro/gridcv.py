@@ -184,11 +184,11 @@ class GridSearchBase:
 
 
             if feature_reductions:
-                self.n_features = [round(self.X.shape[0] * 0.3), round(self.X.shape[0] * 0.1),3]
+                self.n_features = [10, 30, 50]
                 # self.feature_selection_methods +=[Isomap(n_components=n,n_jobs=-1) for n in self.n_features]
-                # self.feature_selection_methods +=[LocallyLinearEmbedding(n_components=n,method='modified', n_neighbors=n+5,
-                #                                                          n_jobs=-1)
-                #                               for n in self.n_features]
+                self.feature_selection_methods +=[LocallyLinearEmbedding(n_components=n,method='modified', n_neighbors=n+5,
+                                                                         n_jobs=-1)
+                                              for n in self.n_features]
                 self.feature_selection_methods += [PCA(n, random_state=self.random_state) for n in self.n_features]
             else:
                 self.n_features = [round(self.X.shape[0]), round(self.X.shape[0] * 0.8)]
@@ -285,7 +285,8 @@ class GridSearchBase:
         external_metrics = []
         external_val_metrics =[]
         best_params_list = []
-        for train_idx, test_idx in self.kfolds.split(self.X, self.y):
+        for i,train_idx, test_idx in enumerate(self.kfolds.split(self.X, self.y)):
+            print(f"Run {i} fold")
             X_train, y_train = self.X.iloc[train_idx], self.y.iloc[train_idx]
             X_test, y_test = self.X.iloc[test_idx], self.y.iloc[test_idx]
 
