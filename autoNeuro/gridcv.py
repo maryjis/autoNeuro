@@ -285,7 +285,7 @@ class GridSearchBase:
         external_metrics = []
         external_val_metrics =[]
         best_params_list = []
-        for i,train_idx, test_idx in enumerate(self.kfolds.split(self.X, self.y)):
+        for i, (train_idx, test_idx) in enumerate(self.kfolds.split(self.X, self.y)):
             print(f"Run {i} fold")
             X_train, y_train = self.X.iloc[train_idx], self.y.iloc[train_idx]
             X_test, y_test = self.X.iloc[test_idx], self.y.iloc[test_idx]
